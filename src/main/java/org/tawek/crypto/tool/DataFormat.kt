@@ -2,10 +2,8 @@ package org.tawek.crypto.tool
 
 import org.apache.commons.codec.binary.Hex
 import org.apache.commons.io.FileUtils
-import org.tawek.crypto.tool.DataFormat.Companion.UTF8
 import java.io.File
 import java.nio.charset.Charset
-
 import java.util.*
 
 enum class DataFormat {

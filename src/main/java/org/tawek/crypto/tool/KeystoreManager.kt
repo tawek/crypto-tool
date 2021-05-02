@@ -59,7 +59,7 @@ class KeystoreManager {
 
     private fun checkNoKeystore() {
         if (keystore != null && modified) {
-            throw  IllegalStateException("Loaded keystore is modified, close it first")
+            throw  IllegalStateException(KEYSTORE_MODIFIED_MESSAGE)
         }
     }
 
@@ -97,7 +97,7 @@ class KeystoreManager {
         val ks = checkKeystore()
         if (modified) {
             if (!force) {
-                throw IllegalStateException("Keystore is modified, save it first or close it with --force flag")
+                throw IllegalStateException(KEYSTORE_MODIFIED_MESSAGE)
             } else {
                 terminal.writer().println("Force closing modified keystore")
             }
@@ -215,6 +215,12 @@ class KeystoreManager {
         }
     }
 
-    private fun checkKeystore() = requireNotNull(keystore, { "Keystore not loaded" })
+    private fun checkKeystore() = requireNotNull(keystore, { NO_KEYSTORE_MESSAGE })
+
+    companion object {
+        const val KEYSTORE_MODIFIED_MESSAGE = "Keystore is modified, save it first or close it with --force flag"
+        const val NO_KEYSTORE_MESSAGE = "Keystore is not loaded, load it first"
+
+    }
 
 }

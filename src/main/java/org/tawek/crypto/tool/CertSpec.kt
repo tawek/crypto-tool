@@ -6,10 +6,10 @@ import java.time.Instant
 
 @Suppress("ArrayInDataClass")
 data class CertSpec(
-    var issuerDn: X500Name,
-    var subjectDn: X500Name,
-    var notBefore: Instant,
-    var notAfter: Instant,
-    var serialNo: BigInteger,
-    var subjectKeyId: ByteArray? = null
+    val issuerDn: X500Name,
+    val subjectDn: X500Name,
+    val notBefore: Instant,
+    val notAfter: Instant,
+    val serialNo: BigInteger,
+    val subjectKeyId: ByteArray? = null
 )
