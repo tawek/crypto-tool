@@ -19,11 +19,11 @@ class ExitCommand  {
 
     @ShellMethod("Exit from shell")
     fun exit(): ExitRequest? {
-        if (keystoreManager.modified) {
+        return if (keystoreManager.modified) {
             terminal.writer().println("Keystore is modified, close or save first")
-            return null
+            null
         } else {
-            return ExitRequest(1)
+            ExitRequest(1)
         }
     }
 }

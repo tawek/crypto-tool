@@ -10,8 +10,7 @@ import org.springframework.context.annotation.Import
 import org.yaml.snakeyaml.util.ArrayUtils
 import java.security.Security
 
-@SpringBootApplication(scanBasePackages = ["org.tawek.crypto.tool"])
-
+@SpringBootApplication
 open class App {
 
     companion object {
