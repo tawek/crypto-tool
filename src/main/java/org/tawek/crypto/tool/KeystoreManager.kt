@@ -33,7 +33,7 @@ import javax.crypto.SecretKey
 class KeystoreManager {
 
     var keystore: KeyStore? = null
-    var modified : Boolean = false
+    var modified: Boolean = false
 
     @Autowired
     lateinit var terminal: Terminal
@@ -57,12 +57,6 @@ class KeystoreManager {
         return keystoreInfo()
     }
 
-    private fun checkNoKeystore() {
-        if (keystore != null && modified) {
-            throw  IllegalStateException(KEYSTORE_MODIFIED_MESSAGE)
-        }
-    }
-
     @ShellMethod("Store keystore to file")
     fun storeKeystore(
         @ShellOption("-f", "--file", help = "Keystore file name") keystoreFile: String,
@@ -78,7 +72,7 @@ class KeystoreManager {
         modified = false
     }
 
-    private fun countKeys(ks:KeyStore) = ks.aliases().toList().size
+    private fun countKeys(ks: KeyStore) = ks.aliases().toList().size
 
     @ShellMethod("Create keystore")
     fun createKeystore(
@@ -92,7 +86,7 @@ class KeystoreManager {
 
     @ShellMethod("Close keystore")
     fun closeKeystore(
-        @ShellOption("-f","--force", help = "Force keystore close") force: Boolean
+        @ShellOption("-f", "--force", help = "Force keystore close") force: Boolean
     ) {
         val ks = checkKeystore()
         if (modified) {
@@ -106,6 +100,17 @@ class KeystoreManager {
         modified = false
     }
 
+    @ShellMethod("Delete key")
+    fun deleteKey(
+        @ShellOption("-l", "--label") label: String,
+    ) {
+        val ks = checkKeystore()
+        checkKey(label)
+        ks.deleteEntry(label)
+        terminal.writer().println("Key ${label} deleted")
+        modified = true
+    }
+
     @ShellMethod("Generate symmetric key")
     fun generateKey(
         @ShellOption("-l", "--label") label: String,
@@ -113,11 +118,12 @@ class KeystoreManager {
         @ShellOption("-b", "--bits", defaultValue = NULL) bits: Int?,
     ): String {
         val ks = checkKeystore()
+        checkNoKey(label)
         val keyGenerator = KeyGenerator.getInstance(type)
         keyGenerator.init(defaultBits(type, bits))
         val key = keyGenerator.generateKey()
         ks.setKeyEntry(label, key, "".toCharArray(), arrayOf())
-        modified=true
+        modified = true
         terminal.writer().println("Key generated")
         return describeKey(ks, label)
     }
@@ -141,6 +147,7 @@ class KeystoreManager {
         bits: Int?,
     ): String {
         val ks = checkKeystore()
+        checkNoKey(label)
         val keyGenerator = KeyPairGenerator.getInstance(type)
         keyGenerator.initialize(defaultBits(type, bits))
         val keyPair = keyGenerator.generateKeyPair()
@@ -156,7 +163,7 @@ class KeystoreManager {
                 )
             )
         ks.setKeyEntry(label, keyPair.private, "".toCharArray(), arrayOf(cert))
-        modified =true
+        modified = true
         terminal.writer().println("Keypair generated")
         return describeKey(ks, label)
     }
@@ -215,7 +222,19 @@ class KeystoreManager {
         }
     }
 
+    private fun checkNoKeystore() {
+        check(keystore == null || !modified, { KEYSTORE_MODIFIED_MESSAGE })
+    }
+
     private fun checkKeystore() = requireNotNull(keystore, { NO_KEYSTORE_MESSAGE })
+
+    private fun checkNoKey(label: String) {
+        check(!keystore!!.containsAlias(label), { "Key ${label} already exists." })
+    }
+
+    private fun checkKey(label: String) {
+        require(keystore!!.containsAlias(label), { "No key $label" })
+    }
 
     companion object {
         const val KEYSTORE_MODIFIED_MESSAGE = "Keystore is modified, save it first or close it with --force flag"
