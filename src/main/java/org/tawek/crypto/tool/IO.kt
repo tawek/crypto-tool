@@ -2,6 +2,7 @@ package org.tawek.crypto.tool
 
 import org.jline.terminal.Terminal
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.context.annotation.Lazy
 import org.springframework.stereotype.Component
 import org.tawek.crypto.tool.DataFormat
 import org.tawek.crypto.tool.DataFormat.TEXT
@@ -11,6 +12,7 @@ import java.io.File
 class IO {
 
     @Autowired
+    @Lazy
     lateinit var terminal: Terminal
 
     fun writeOutput(

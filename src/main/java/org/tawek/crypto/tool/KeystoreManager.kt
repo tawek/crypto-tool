@@ -217,8 +217,8 @@ class KeystoreManager {
             }
         }
         return when (keyOp) {
-            CIPHER, VERIFY -> ks.getCertificate(keyLabel).publicKey!!
-            DECIPHER, SIGN -> ks.getKey(keyLabel, "".toCharArray())!!
+            CIPHER, VERIFY -> requireNotNull(ks.getCertificate(keyLabel).publicKey, { "No certificate ${keyLabel}" })
+            DECIPHER, SIGN -> requireNotNull(ks.getKey(keyLabel, "".toCharArray()), { "No private key ${keyLabel}" })
         }
     }
 
