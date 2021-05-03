@@ -233,7 +233,7 @@ class KeystoreManager {
     }
 
     private fun checkKey(label: String) {
-        require(keystore!!.containsAlias(label), { "No key $label" })
+        require(keystore!!.containsAlias(label), { "No key ${label}" })
     }
 
     companion object {

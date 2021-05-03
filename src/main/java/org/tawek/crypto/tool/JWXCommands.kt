@@ -39,10 +39,15 @@ class JWXCommands {
         jwe.algorithmHeaderValue = kmAlgo
         jwe.encryptionMethodHeaderParameter = ceAlgo
         setHeaders(headers, jwe)
-        jwe.compressionAlgorithmHeaderParameter = compress
-        jwe.contentTypeHeaderValue = contentType
+        if (compress!= null) {
+            jwe.compressionAlgorithmHeaderParameter = compress
+        }
+        if (contentType != null) {
+            jwe.contentTypeHeaderValue = contentType
+        }
         jwe.keyIdHeaderValue = keyId ?: keyLabel
         val result = jwe.compactSerialization.toByteArray(UTF8)
+        printHeaders(jwe)
         io.writeOutput(result, output)
     }
 
@@ -58,7 +63,12 @@ class JWXCommands {
         jwe.compactSerialization = String(io.readInput(input, inputData, DataFormat.TEXT), UTF8)
         jwe.key = keystoreManager.getKey(keyLabel, KeyOp.DECIPHER)
         val result = jwe.plaintextBytes
+        printHeaders(jwe)
         io.writeOutput(result, output)
+    }
+
+    private fun printHeaders(jwx: JsonWebStructure) {
+        io.terminal.writer().println("Headers :\n${jwx.headers.fullHeaderAsJsonString}")
     }
 
 
@@ -79,9 +89,12 @@ class JWXCommands {
         jws.key = keystoreManager.getKey(keyLabel, KeyOp.SIGN)
         jws.algorithmHeaderValue = kmAlgo
         setHeaders(headers, jws)
-        jws.contentTypeHeaderValue = contentType
+        if (contentType != null) {
+            jws.contentTypeHeaderValue = contentType
+        }
         jws.keyIdHeaderValue = keyId ?: keyLabel
         val result = jws.compactSerialization.toByteArray(UTF8)
+        printHeaders(jws)
         io.writeOutput(result, output)
     }
 
@@ -90,7 +103,7 @@ class JWXCommands {
             headers.forEach {
                 val split = it.split('=')
                 val key = split[0]
-                val value = split.slice(1..split.size).joinToString("=")
+                val value = split.slice(1 until split.size).joinToString("=")
                 jwe.setHeader(key, value)
             }
         }
@@ -108,6 +121,7 @@ class JWXCommands {
         jws.compactSerialization = String(io.readInput(input, inputData, DataFormat.TEXT), UTF8)
         jws.key = keystoreManager.getKey(keyLabel, KeyOp.VERIFY)
         val result = jws.payloadBytes
+        printHeaders(jws)
         io.writeOutput(result, output)
     }
 
