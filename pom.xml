@@ -67,6 +67,12 @@
             <artifactId>bcpkix-jdk15on</artifactId>
             <version>1.68</version>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/org.bitbucket.b_c/jose4j -->
+        <dependency>
+            <groupId>org.bitbucket.b_c</groupId>
+            <artifactId>jose4j</artifactId>
+            <version>0.7.7</version>
+        </dependency>
     </dependencies>
 
     <build>

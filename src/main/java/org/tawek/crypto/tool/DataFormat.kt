@@ -2,6 +2,8 @@ package org.tawek.crypto.tool
 
 import org.apache.commons.codec.binary.Hex
 import org.apache.commons.io.FileUtils
+import org.tawek.crypto.tool.Charsets.EXTENDED_ASCII
+import org.tawek.crypto.tool.Charsets.UTF8
 import java.io.File
 import java.nio.charset.Charset
 import java.util.*
@@ -43,11 +45,11 @@ enum class DataFormat {
     },
     TEXT {
         override fun decode(value: String): ByteArray {
-            return value.toByteArray(Companion.UTF8)
+            return value.toByteArray(UTF8)
         }
 
         override fun encode(value: ByteArray): String {
-            return String(value, Companion.UTF8)
+            return String(value, UTF8)
         }
 
         override fun readFile(file: File): ByteArray {
@@ -78,8 +80,6 @@ enum class DataFormat {
             return HEX.decode(value)
         }
 
-        private val UTF8 = Charset.forName("UTF-8")
-        private val EXTENDED_ASCII = Charset.forName("ISO-8859-1")
     }
 
 }
