@@ -21,6 +21,7 @@ import java.security.interfaces.ECPrivateKey
 import java.security.interfaces.ECPublicKey
 import java.security.interfaces.RSAPrivateKey
 import java.security.interfaces.RSAPublicKey
+import java.security.spec.ECGenParameterSpec
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.*
@@ -113,9 +114,9 @@ class KeystoreManager {
 
     @ShellMethod("Generate symmetric key")
     fun generateKey(
-        @ShellOption("-l", "--label") label: String,
-        @ShellOption("-t", "--type", defaultValue = "AES") type: String,
-        @ShellOption("-b", "--bits", defaultValue = NULL) bits: Int?,
+        @ShellOption("-l", "--label", help = "Label of a new key") label: String,
+        @ShellOption("-t", "--type", help = "Type of key to generate (AES/DESede)", defaultValue = "AES") type: String,
+        @ShellOption("-b", "--bits", help = "Length of key in bits", defaultValue = NULL) bits: Int?,
     ): String {
         val ks = checkKeystore()
         checkNoKey(label)
@@ -130,7 +131,7 @@ class KeystoreManager {
 
     @ShellMethod("Generate asymmetric key pair")
     fun generateKeyPair(
-        @ShellOption("-l", "--label") label: String,
+        @ShellOption("-l", "--label", help = "Label of a new key-pair") label: String,
         @ShellOption(
             "-t",
             "--type",
@@ -141,25 +142,47 @@ class KeystoreManager {
         @ShellOption(
             "-b",
             "--bits",
-            help = "Length of private key in bits (default is 2048bits for RSA and 256 for EC) ",
+            help = "Length of private key in bits (default is 2048 for RSA and 256 for EC). ",
             defaultValue = NULL
         )
         bits: Int?,
-    ): String {
+        @ShellOption(
+            "-c",
+            "--curve",
+            help = "Curve name for EC (NIST curves are used by default matching bits parameter if curve is not specified)",
+            defaultValue = NULL
+        )
+        curve: String?,
+        @ShellOption(
+            "-dn",
+            help = "Subject DN for self-signed certificate (the default is cn=<label>)",
+            defaultValue = NULL
+        )
+        subjectDN: String?,
+
+        ): String {
         val ks = checkKeystore()
         checkNoKey(label)
         val keyGenerator = KeyPairGenerator.getInstance(type)
-        keyGenerator.initialize(defaultBits(type, bits))
+        when {
+            curve != null -> keyGenerator.initialize(ECGenParameterSpec(curve))
+            else -> keyGenerator.initialize(defaultBits(type, bits))
+        }
         val keyPair = keyGenerator.generateKeyPair()
+        if (bits != null && bitSize(keyPair.private) != bits) {
+            throw IllegalArgumentException("Curve ${curve} is not ${bits} bit")
+        }
         //make self-signed cert for 100 years
+        val years = 100
+        val dn = subjectDN ?: "cn=${label}"
         val cert = CertBuilder(signedPublicKey = keyPair.public, signerPrivateKey = keyPair.private)
             .build(
                 CertSpec(
-                    issuerDn = X500Name("cn=${label}"),
-                    subjectDn = X500Name("cn=${label}"),
+                    issuerDn = X500Name(dn),
+                    subjectDn = X500Name(dn),
                     notBefore = Instant.now(),
-                    notAfter = Instant.now().plus(365 * 100, ChronoUnit.DAYS),
-                    serialNo = BigInteger.valueOf(Math.abs(Random().nextLong())),
+                    notAfter = Instant.now().plus(365L * years, ChronoUnit.DAYS),
+                    serialNo = BigInteger.valueOf(Random().nextInt(100000000).toLong()),
                 )
             )
         ks.setKeyEntry(label, keyPair.private, "".toCharArray(), arrayOf(cert))
@@ -174,6 +197,7 @@ class KeystoreManager {
                 "RSA" -> 2048
                 "EC" -> 256
                 "AES" -> 128
+                "DESede" -> 128
                 else -> throw IllegalArgumentException("Unknown key type ${type}")
             }
     }
