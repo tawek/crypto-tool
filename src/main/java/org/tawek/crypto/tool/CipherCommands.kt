@@ -7,14 +7,16 @@ import org.springframework.shell.standard.ShellMethod
 import org.springframework.shell.standard.ShellOption
 import org.springframework.shell.standard.ShellOption.NULL
 import org.tawek.crypto.tool.DataFormat.Companion.detectAndDecode
+import org.tawek.crypto.tool.completion.Algo
+import org.tawek.crypto.tool.completion.KeyLabel
 import java.security.spec.AlgorithmParameterSpec
 import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.IvParameterSpec
 
 @ShellComponent
-@ShellCommandGroup("Crypto operations")
-class CryptoCommands {
+@ShellCommandGroup("Cipher operations")
+class CipherCommands {
 
     @Autowired
     private lateinit var keystoreManager: KeystoreManager
@@ -26,6 +28,7 @@ class CryptoCommands {
     fun cipher(
         @KeyLabel
         @ShellOption("-k", "--key", help="Label of a key from a keystore (load it first)") keyLabel: String,
+        @Algo("Cipher")
         @ShellOption("-a", "--algo", help="Name of algorithm (ex: 'AES/GCM/NoPadding')") algo: String,
         @ShellOption("-i", "--input", help="Name of input file", defaultValue = NULL) input: String?,
         @ShellOption("-id", "--input-data",
@@ -56,6 +59,7 @@ class CryptoCommands {
     fun decipher(
         @KeyLabel
         @ShellOption("-k", "--key", help="Label of a key from a keystore (load it first)") keyLabel: String,
+        @Algo("Cipher")
         @ShellOption("-a", "--algo", help="Name of algorithm (ex: 'AES/GCM/NoPadding')") algo: String,
         @ShellOption("-i", "--input", help="Name of input file", defaultValue = NULL) input: String?,
         @ShellOption("-id", "--input-data",

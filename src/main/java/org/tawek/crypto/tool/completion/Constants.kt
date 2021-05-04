@@ -1,4 +1,4 @@
-package org.tawek.crypto.tool
+package org.tawek.crypto.tool.completion
 
 import kotlin.reflect.KClass
 

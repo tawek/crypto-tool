@@ -9,6 +9,8 @@ import org.springframework.shell.standard.ShellMethod
 import org.springframework.shell.standard.ShellOption
 import org.springframework.shell.standard.ShellOption.NULL
 import org.tawek.crypto.tool.Charsets.UTF8
+import org.tawek.crypto.tool.completion.Constants
+import org.tawek.crypto.tool.completion.KeyLabel
 
 @ShellComponent
 class JWXCommands {

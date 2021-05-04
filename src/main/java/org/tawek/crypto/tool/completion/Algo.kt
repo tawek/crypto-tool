@@ -1,5 +1,5 @@
-package org.tawek.crypto.tool
+package org.tawek.crypto.tool.completion
 
 @Target(AnnotationTarget.VALUE_PARAMETER)
 @Retention(AnnotationRetention.RUNTIME)
-annotation class KeyLabel
+annotation class Algo(val value: String)

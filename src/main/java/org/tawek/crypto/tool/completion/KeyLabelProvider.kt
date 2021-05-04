@@ -1,4 +1,4 @@
-package org.tawek.crypto.tool
+package org.tawek.crypto.tool.completion
 
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.core.MethodParameter
@@ -6,6 +6,7 @@ import org.springframework.shell.CompletionContext
 import org.springframework.shell.CompletionProposal
 import org.springframework.shell.standard.ShellComponent
 import org.springframework.shell.standard.ValueProvider
+import org.tawek.crypto.tool.KeystoreManager
 
 @ShellComponent
 class KeyLabelProvider : ValueProvider {
