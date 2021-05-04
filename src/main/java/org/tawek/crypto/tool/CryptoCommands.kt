@@ -24,15 +24,18 @@ class CryptoCommands {
 
     @ShellMethod("Cipher data")
     fun cipher(
-        @ShellOption("-k", "--key") keyLabel: String,
-        @ShellOption("-a", "--algo") algo: String,
-        @ShellOption("-i", "--input", defaultValue = NULL) input: String?,
-        @ShellOption("-id", "--input-data", defaultValue = NULL) inputData: String?,
-        @ShellOption("-if", "--input-format", defaultValue = NULL) inputFormat: DataFormat?,
-        @ShellOption("-of", "--output-format", defaultValue = NULL) outputFormat: DataFormat?,
-        @ShellOption("-o", "--output", defaultValue = NULL) output: String?,
-        @ShellOption("--icv", defaultValue = NULL) icv: String?,
-        @ShellOption("--aad", defaultValue = NULL) aad: String?,
+        @KeyLabel
+        @ShellOption("-k", "--key", help="Label of a key from a keystore (load it first)") keyLabel: String,
+        @ShellOption("-a", "--algo", help="Name of algorithm (ex: 'AES/GCM/NoPadding')") algo: String,
+        @ShellOption("-i", "--input", help="Name of input file", defaultValue = NULL) input: String?,
+        @ShellOption("-id", "--input-data",
+            help="Input data directly from console. Prefix with 'HEX:', 'BASE64:', 'TEXT:' or specify format with -if switch",
+            defaultValue = NULL) inputData: String?,
+        @ShellOption("-if", "--input-format", help="Input data/file format (default is 'HEX' for console input and 'TEXT' for file input)", defaultValue = NULL) inputFormat: DataFormat?,
+        @ShellOption("-of", "--output-format", help="Output data/file format (default is 'HEX' for console output and 'TEXT' for file output)", defaultValue = NULL) outputFormat: DataFormat?,
+        @ShellOption("-o", "--output", help="Name of output file (if unspecified data will be written directly to console)", defaultValue = NULL) output: String?,
+        @ShellOption("--icv", help="ICV for CBC/GCM and other chaining modes", defaultValue = NULL) icv: String?,
+        @ShellOption("--aad", help="Additional authenticated data (used for GCM)", defaultValue = NULL) aad: String?,
     ) {
         val cipher = getCipher(algo)
 
@@ -44,19 +47,25 @@ class CryptoCommands {
 
         val result = cipher.doFinal(io.readInput(input, inputData, inputFormat))
         io.writeOutput(result, output, outputFormat)
+        if (cipher.iv != null) {
+            io.println("ICV HEX:\n${DataFormat.HEX.encode(cipher.iv)}")
+        }
     }
 
     @ShellMethod("Decipher data")
     fun decipher(
-        @ShellOption("-k", "--key") keyLabel: String,
-        @ShellOption("-a", "--algo") algo: String,
-        @ShellOption("-i", "--input", defaultValue = NULL) input: String?,
-        @ShellOption("-id", "--input-data", defaultValue = NULL) inputData: String?,
-        @ShellOption("-if", "--input-format", defaultValue = NULL) inputFormat: DataFormat?,
-        @ShellOption("-of", "--output-format", defaultValue = NULL) outputFormat: DataFormat?,
-        @ShellOption("-o", "--output", defaultValue = NULL) output: String?,
-        @ShellOption("--icv", defaultValue = NULL) icv: String?,
-        @ShellOption("--aad", defaultValue = NULL) aad: String?,
+        @KeyLabel
+        @ShellOption("-k", "--key", help="Label of a key from a keystore (load it first)") keyLabel: String,
+        @ShellOption("-a", "--algo", help="Name of algorithm (ex: 'AES/GCM/NoPadding')") algo: String,
+        @ShellOption("-i", "--input", help="Name of input file", defaultValue = NULL) input: String?,
+        @ShellOption("-id", "--input-data",
+            help="Input data directly from console. Prefix with 'HEX:', 'BASE64:', 'TEXT:' or specify format with -if switch",
+            defaultValue = NULL) inputData: String?,
+        @ShellOption("-if", "--input-format", help="Input data/file format (default is 'HEX' for console input and 'TEXT' for file input)", defaultValue = NULL) inputFormat: DataFormat?,
+        @ShellOption("-of", "--output-format", help="Output data/file format (default is 'HEX' for console output and 'TEXT' for file output)", defaultValue = NULL) outputFormat: DataFormat?,
+        @ShellOption("-o", "--output", help="Name of output file (if unspecified data will be written directly to console)", defaultValue = NULL) output: String?,
+        @ShellOption("--icv", help="ICV for CBC/GCM and other chaining modes", defaultValue = NULL) icv: String?,
+        @ShellOption("--aad", help="Additional authenticated data (used for GCM)", defaultValue = NULL) aad: String?,
     ) {
         val cipher = getCipher(algo)
 

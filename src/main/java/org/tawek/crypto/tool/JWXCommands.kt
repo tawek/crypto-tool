@@ -21,17 +21,58 @@ class JWXCommands {
 
     @ShellMethod("JWE Encode")
     fun jweEncode(
-        @ShellOption("-k", "--key") keyLabel: String,
-        @ShellOption("-alg", "--key-management-algo") kmAlgo: String,
-        @ShellOption("-enc", "--content-encryption-algo") ceAlgo: String,
-        @ShellOption("-i", "--input", defaultValue = NULL) input: String?,
-        @ShellOption("-id", "--input-data", defaultValue = NULL) inputData: String?,
-        @ShellOption("-if", "--input-format", defaultValue = NULL) inputFormat: DataFormat?,
-        @ShellOption("-o", "--output", defaultValue = NULL) output: String?,
-        @ShellOption("-h", "--header", defaultValue = NULL) headers: Array<String>?,
-        @ShellOption("-zip", "--compress", defaultValue = NULL) compress: String?,
-        @ShellOption("-kid", defaultValue = NULL) keyId: String?,
-        @ShellOption("-cty", "--content-type", defaultValue = NULL) contentType: String?
+        @KeyLabel
+        @ShellOption("-k", "--key", help = "Label of a key from a keystore (load it first)") keyLabel: String,
+        @Constants(org.jose4j.jwe.KeyManagementAlgorithmIdentifiers::class)
+        @ShellOption("-alg", "--key-management-algo", help = "Key management algorithm (ex: RSA1_5)") kmAlgo: String,
+        @Constants(org.jose4j.jwe.ContentEncryptionAlgorithmIdentifiers::class)
+        @ShellOption(
+            "-enc",
+            "--content-encryption-algo",
+            help = "Content encryption algorithm (ex: A128GCM)"
+        ) ceAlgo: String,
+        @ShellOption("-i", "--input", help = "Name of input file", defaultValue = NULL) input: String?,
+        @ShellOption(
+            "-id", "--input-data",
+            help = "Input data directly from console. Prefix with 'HEX:', 'BASE64:', 'TEXT:' or specify format with -if switch",
+            defaultValue = NULL
+        ) inputData: String?,
+        @ShellOption(
+            "-if",
+            "--input-format",
+            help = "Input data/file format (default is 'HEX' for console input and 'TEXT' for file input)",
+            defaultValue = NULL
+        ) inputFormat: DataFormat?,
+        @ShellOption(
+            "-of",
+            "--output-format",
+            help = "Output data/file format (default is 'HEX' for console output and 'TEXT' for file output)",
+            defaultValue = NULL
+        ) outputFormat: DataFormat?,
+        @ShellOption(
+            "-o",
+            "--output",
+            help = "Name of output file (if unspecified data will be written directly to console)",
+            defaultValue = NULL
+        ) output: String?,
+        @ShellOption(
+            "-h",
+            "--header",
+            help = "Comma-separated list of additional header <key>=<value> pairs",
+            defaultValue = NULL
+        ) headers: Array<String>?,
+        @ShellOption(
+            "-kid",
+            help = "Key identifier header (if unspecified it will default to key label)",
+            defaultValue = NULL
+        ) keyId: String?,
+        @ShellOption("-cty", "--content-type", help = "'cty' header value", defaultValue = NULL) contentType: String?,
+        @ShellOption(
+            "-zip",
+            "--compress",
+            help = "'zip' header value. (ex: DEF)",
+            defaultValue = NULL
+        ) compress: String?,
     ) {
         val jwe = JsonWebEncryption()
         jwe.setPlaintext(io.readInput(input, inputData, inputFormat))
@@ -39,7 +80,7 @@ class JWXCommands {
         jwe.algorithmHeaderValue = kmAlgo
         jwe.encryptionMethodHeaderParameter = ceAlgo
         setHeaders(headers, jwe)
-        if (compress!= null) {
+        if (compress != null) {
             jwe.compressionAlgorithmHeaderParameter = compress
         }
         if (contentType != null) {
@@ -53,11 +94,32 @@ class JWXCommands {
 
     @ShellMethod("JWE Decode")
     fun jweDecode(
-        @ShellOption("-k", "--key") keyLabel: String,
-        @ShellOption("-i", "--input", defaultValue = NULL) input: String?,
-        @ShellOption("-id", "--input-data", defaultValue = NULL) inputData: String?,
-        @ShellOption("-o", "--output", defaultValue = NULL) output: String?,
-        @ShellOption("-of", "--output-format", defaultValue = NULL) outputFormat: DataFormat?,
+        @KeyLabel
+        @ShellOption("-k", "--key", help = "Label of a key from a keystore (load it first)") keyLabel: String,
+        @ShellOption("-i", "--input", help = "Name of input file", defaultValue = NULL) input: String?,
+        @ShellOption(
+            "-id", "--input-data",
+            help = "Input data directly from console. Prefix with 'HEX:', 'BASE64:', 'TEXT:' or specify format with -if switch",
+            defaultValue = NULL
+        ) inputData: String?,
+        @ShellOption(
+            "-if",
+            "--input-format",
+            help = "Input data/file format (default is 'HEX' for console input and 'TEXT' for file input)",
+            defaultValue = NULL
+        ) inputFormat: DataFormat?,
+        @ShellOption(
+            "-of",
+            "--output-format",
+            help = "Output data/file format (default is 'HEX' for console output and 'TEXT' for file output)",
+            defaultValue = NULL
+        ) outputFormat: DataFormat?,
+        @ShellOption(
+            "-o",
+            "--output",
+            help = "Name of output file (if unspecified data will be written directly to console)",
+            defaultValue = NULL
+        ) output: String?,
     ) {
         val jwe = JsonWebEncryption()
         jwe.compactSerialization = String(io.readInput(input, inputData, DataFormat.TEXT), UTF8)
@@ -68,21 +130,52 @@ class JWXCommands {
     }
 
     private fun printHeaders(jwx: JsonWebStructure) {
-        io.terminal.writer().println("Headers :\n${jwx.headers.fullHeaderAsJsonString}")
+        io.println("Headers :\n${jwx.headers.fullHeaderAsJsonString}")
     }
 
 
     @ShellMethod("JWS Encode")
     fun jwsEncode(
-        @ShellOption("-k", "--key") keyLabel: String,
-        @ShellOption("-alg", "--sign-algo") kmAlgo: String,
-        @ShellOption("-i", "--input", defaultValue = NULL) input: String?,
-        @ShellOption("-id", "--input-data", defaultValue = NULL) inputData: String?,
-        @ShellOption("-if", "--input-format", defaultValue = NULL) inputFormat: DataFormat?,
-        @ShellOption("-o", "--output", defaultValue = NULL) output: String?,
-        @ShellOption("-h", "--header", defaultValue = NULL) headers: Array<String>?,
-        @ShellOption("-kid", defaultValue = NULL) keyId: String?,
-        @ShellOption("-cty", "--content-type", defaultValue = NULL) contentType: String?
+        @KeyLabel
+        @ShellOption("-k", "--key", help = "Label of a key from a keystore (load it first)") keyLabel: String,
+        @Constants(org.jose4j.jws.AlgorithmIdentifiers::class)
+        @ShellOption("-alg", "--sign-algo", help = "Signinig JWS algorithm (ex: 'RS256')") kmAlgo: String,
+        @ShellOption("-i", "--input", help = "Name of input file", defaultValue = NULL) input: String?,
+        @ShellOption(
+            "-id", "--input-data",
+            help = "Input data directly from console. Prefix with 'HEX:', 'BASE64:', 'TEXT:' or specify format with -if switch",
+            defaultValue = NULL
+        ) inputData: String?,
+        @ShellOption(
+            "-if",
+            "--input-format",
+            help = "Input data/file format (default is 'HEX' for console input and 'TEXT' for file input)",
+            defaultValue = NULL
+        ) inputFormat: DataFormat?,
+        @ShellOption(
+            "-of",
+            "--output-format",
+            help = "Output data/file format (default is 'HEX' for console output and 'TEXT' for file output)",
+            defaultValue = NULL
+        ) outputFormat: DataFormat?,
+        @ShellOption(
+            "-o",
+            "--output",
+            help = "Name of output file (if unspecified data will be written directly to console)",
+            defaultValue = NULL
+        ) output: String?,
+        @ShellOption(
+            "-h",
+            "--header",
+            help = "Comma-separated list of additional header <key>=<value> pairs",
+            defaultValue = NULL
+        ) headers: Array<String>?,
+        @ShellOption(
+            "-kid",
+            help = "Key identifier header (if unspecified it will default to key label)",
+            defaultValue = NULL
+        ) keyId: String?,
+        @ShellOption("-cty", "--content-type", help = "'cty' header value", defaultValue = NULL) contentType: String?
     ) {
         val jws = JsonWebSignature()
         jws.payloadBytes = io.readInput(input, inputData, inputFormat)
@@ -99,23 +192,42 @@ class JWXCommands {
     }
 
     private fun setHeaders(headers: Array<String>?, jwe: JsonWebStructure) {
-        if (headers != null) {
-            headers.forEach {
-                val split = it.split('=')
-                val key = split[0]
-                val value = split.slice(1 until split.size).joinToString("=")
-                jwe.setHeader(key, value)
-            }
+        headers?.forEach {
+            val split = it.split('=')
+            val key = split[0]
+            val value = split.slice(1 until split.size).joinToString("=")
+            jwe.setHeader(key, value)
         }
     }
 
     @ShellMethod("JWS Decode")
     fun jwsDecode(
-        @ShellOption("-k", "--key") keyLabel: String,
-        @ShellOption("-i", "--input", defaultValue = NULL) input: String?,
-        @ShellOption("-id", "--input-data", defaultValue = NULL) inputData: String?,
-        @ShellOption("-o", "--output", defaultValue = NULL) output: String?,
-        @ShellOption("-of", "--output-format", defaultValue = NULL) outputFormat: DataFormat?,
+        @KeyLabel
+        @ShellOption("-k", "--key", help = "Label of a key from a keystore (load it first)") keyLabel: String,
+        @ShellOption("-i", "--input", help = "Name of input file", defaultValue = NULL) input: String?,
+        @ShellOption(
+            "-id", "--input-data",
+            help = "Input data directly from console. Prefix with 'HEX:', 'BASE64:', 'TEXT:' or specify format with -if switch",
+            defaultValue = NULL
+        ) inputData: String?,
+        @ShellOption(
+            "-if",
+            "--input-format",
+            help = "Input data/file format (default is 'HEX' for console input and 'TEXT' for file input)",
+            defaultValue = NULL
+        ) inputFormat: DataFormat?,
+        @ShellOption(
+            "-of",
+            "--output-format",
+            help = "Output data/file format (default is 'HEX' for console output and 'TEXT' for file output)",
+            defaultValue = NULL
+        ) outputFormat: DataFormat?,
+        @ShellOption(
+            "-o",
+            "--output",
+            help = "Name of output file (if unspecified data will be written directly to console)",
+            defaultValue = NULL
+        ) output: String?,
     ) {
         val jws = JsonWebSignature()
         jws.compactSerialization = String(io.readInput(input, inputData, DataFormat.TEXT), UTF8)

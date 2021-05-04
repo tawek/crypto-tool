@@ -17,6 +17,7 @@ import java.lang.IllegalArgumentException
 import java.lang.IllegalStateException
 import java.math.BigInteger
 import java.security.*
+import java.security.cert.X509Certificate
 import java.security.interfaces.ECPrivateKey
 import java.security.interfaces.ECPublicKey
 import java.security.interfaces.RSAPrivateKey
@@ -44,7 +45,7 @@ class KeystoreManager {
         if (keystore == null) {
             return "No keystore"
         }
-        return "Provider: ${keystore!!.provider} type: ${keystore!!.type} keys: ${countKeys(keystore!!)} modified:${modified}";
+        return "Provider: ${keystore!!.provider} type: ${keystore!!.type} keys: ${countKeys(keystore!!)} modified:${modified}"
     }
 
     @ShellMethod("Load keystore from file")
@@ -63,8 +64,8 @@ class KeystoreManager {
         @ShellOption("-f", "--file", help = "Keystore file name") keystoreFile: String,
         @ShellOption("-p", "--password", defaultValue = "") keystorePassword: String
     ) {
-        val ks = checkKeystore()
-        val baos = ByteArrayOutputStream();
+        val ks = keystore()
+        val baos = ByteArrayOutputStream()
         ks.store(baos, keystorePassword.toCharArray())
         baos.flush()
         baos.close()
@@ -72,8 +73,6 @@ class KeystoreManager {
         terminal.writer().println("Keystore stored.")
         modified = false
     }
-
-    private fun countKeys(ks: KeyStore) = ks.aliases().toList().size
 
     @ShellMethod("Create keystore")
     fun createKeystore(
@@ -89,7 +88,7 @@ class KeystoreManager {
     fun closeKeystore(
         @ShellOption("-f", "--force", help = "Force keystore close") force: Boolean
     ) {
-        val ks = checkKeystore()
+        keystore()
         if (modified) {
             if (!force) {
                 throw IllegalStateException(KEYSTORE_MODIFIED_MESSAGE)
@@ -97,7 +96,7 @@ class KeystoreManager {
                 terminal.writer().println("Force closing modified keystore")
             }
         }
-        keystore = null;
+        keystore = null
         modified = false
     }
 
@@ -105,7 +104,7 @@ class KeystoreManager {
     fun deleteKey(
         @ShellOption("-l", "--label") label: String,
     ) {
-        val ks = checkKeystore()
+        val ks = keystore()
         checkKey(label)
         ks.deleteEntry(label)
         terminal.writer().println("Key ${label} deleted")
@@ -118,7 +117,7 @@ class KeystoreManager {
         @ShellOption("-t", "--type", help = "Type of key to generate (AES/DESede)", defaultValue = "AES") type: String,
         @ShellOption("-b", "--bits", help = "Length of key in bits", defaultValue = NULL) bits: Int?,
     ): String {
-        val ks = checkKeystore()
+        val ks = keystore()
         checkNoKey(label)
         val keyGenerator = KeyGenerator.getInstance(type)
         keyGenerator.init(defaultBits(type, bits))
@@ -161,7 +160,7 @@ class KeystoreManager {
         subjectDN: String?,
 
         ): String {
-        val ks = checkKeystore()
+        val ks = keystore()
         checkNoKey(label)
         val keyGenerator = KeyPairGenerator.getInstance(type)
         when {
@@ -175,65 +174,21 @@ class KeystoreManager {
         //make self-signed cert for 100 years
         val years = 100
         val dn = subjectDN ?: "cn=${label}"
-        val cert = CertBuilder(signedPublicKey = keyPair.public, signerPrivateKey = keyPair.private)
-            .build(
-                CertSpec(
-                    issuerDn = X500Name(dn),
-                    subjectDn = X500Name(dn),
-                    notBefore = Instant.now(),
-                    notAfter = Instant.now().plus(365L * years, ChronoUnit.DAYS),
-                    serialNo = BigInteger.valueOf(Random().nextInt(100000000).toLong()),
-                )
-            )
+        val cert = makeX509SelfSignedCert(keyPair, dn, years)
         ks.setKeyEntry(label, keyPair.private, "".toCharArray(), arrayOf(cert))
         modified = true
         terminal.writer().println("Keypair generated")
         return describeKey(ks, label)
     }
 
-    private fun defaultBits(type: String, bits: Int?): Int {
-        return bits
-            ?: when (type) {
-                "RSA" -> 2048
-                "EC" -> 256
-                "AES" -> 128
-                "DESede" -> 128
-                else -> throw IllegalArgumentException("Unknown key type ${type}")
-            }
-    }
-
     @ShellMethod("List keys in keystore")
     fun listKeys(): List<String> {
-        val ks = checkKeystore()
+        val ks = keystore()
         return ks.aliases().toList().stream().map { describeKey(ks, it) }.collect(toList())
     }
 
-    private fun describeKey(ks: KeyStore, alias: String): String {
-        if (ks.isKeyEntry(alias)) {
-            val key = ks.getKey(alias, "".toCharArray())
-            val keyInfo = "[${alias}] : ${key.algorithm} / ${key.format}"
-            return keyInfo + bitSize(key)?.let { " / $it bits" }
-        } else {
-            val certificate = ks.getCertificate(alias)
-            val publicKey = certificate.publicKey
-            val certInfo = "[${alias}] : ${publicKey.algorithm} / ${certificate.type}"
-            return certInfo + bitSize(publicKey)?.let { " / $it bits" }
-        }
-    }
-
-    private fun bitSize(key: Key): Int? {
-        return when (key) {
-            is RSAPrivateKey -> key.modulus.bitLength()
-            is ECPrivateKey -> key.params.curve.field.fieldSize
-            is RSAPublicKey -> key.modulus.bitLength()
-            is ECPublicKey -> key.params.curve.field.fieldSize
-            is SecretKey -> key.encoded.size * 8
-            else -> null
-        }
-    }
-
     fun getKey(keyLabel: String, keyOp: KeyOp): Key {
-        val ks = checkKeystore()
+        val ks = keystore()
         if (ks.isKeyEntry(keyLabel)) {
             val key = ks.getKey(keyLabel, "".toCharArray())
             if (key is SecretKey) {
@@ -250,7 +205,7 @@ class KeystoreManager {
         check(keystore == null || !modified, { KEYSTORE_MODIFIED_MESSAGE })
     }
 
-    private fun checkKeystore() = requireNotNull(keystore, { NO_KEYSTORE_MESSAGE })
+    fun keystore() = requireNotNull(keystore, { NO_KEYSTORE_MESSAGE })
 
     private fun checkNoKey(label: String) {
         check(!keystore!!.containsAlias(label), { "Key ${label} already exists." })
@@ -260,9 +215,65 @@ class KeystoreManager {
         require(keystore!!.containsAlias(label), { "No key ${label}" })
     }
 
+    fun isLoaded(): Boolean = keystore != null
+
     companion object {
         const val KEYSTORE_MODIFIED_MESSAGE = "Keystore is modified, save it first or close it with --force flag"
         const val NO_KEYSTORE_MESSAGE = "Keystore is not loaded, load it first"
+
+        fun describeKey(ks: KeyStore, alias: String): String {
+            if (ks.isKeyEntry(alias)) {
+                val key = ks.getKey(alias, "".toCharArray())
+                val keyInfo = "[${alias}] : ${key.algorithm} / ${key.format}"
+                return keyInfo + bitSize(key)?.let { " / $it bits" }
+            } else {
+                val certificate = ks.getCertificate(alias)
+                val publicKey = certificate.publicKey
+                val certInfo = "[${alias}] : ${publicKey.algorithm} / ${certificate.type}"
+                return certInfo + bitSize(publicKey)?.let { " / $it bits" }
+            }
+        }
+
+        private fun countKeys(ks: KeyStore) = ks.aliases().toList().size
+        private fun makeX509SelfSignedCert(
+            keyPair: KeyPair,
+            dn: String,
+            years: Int
+        ): X509Certificate {
+            val cert = CertBuilder(signedPublicKey = keyPair.public, signerPrivateKey = keyPair.private)
+                .build(
+                    CertSpec(
+                        issuerDn = X500Name(dn),
+                        subjectDn = X500Name(dn),
+                        notBefore = Instant.now(),
+                        notAfter = Instant.now().plus(365L * years, ChronoUnit.DAYS),
+                        serialNo = BigInteger.valueOf(Random().nextInt(100000000).toLong()),
+                    )
+                )
+            return cert
+        }
+
+        private fun defaultBits(type: String, bits: Int?): Int {
+            return bits
+                ?: when (type) {
+                    "RSA" -> 2048
+                    "EC" -> 256
+                    "AES" -> 128
+                    "DESede" -> 128
+                    else -> throw IllegalArgumentException("Unknown key type ${type}")
+                }
+        }
+
+        private fun bitSize(key: Key): Int? {
+            return when (key) {
+                is RSAPrivateKey -> key.modulus.bitLength()
+                is ECPrivateKey -> key.params.curve.field.fieldSize
+                is RSAPublicKey -> key.modulus.bitLength()
+                is ECPublicKey -> key.params.curve.field.fieldSize
+                is SecretKey -> key.encoded.size * 8
+                else -> null
+            }
+        }
 
     }
 

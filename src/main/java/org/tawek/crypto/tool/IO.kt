@@ -23,20 +23,31 @@ class IO {
         if (output == null) {
             val effDataFormat = outputFormat ?: DataFormat.HEX
             val formattedResult = effDataFormat.encode(result)
-            terminal.writer().println("OUTPUT ${effDataFormat.name}:")
-            terminal.writer().println(formattedResult)
+            println("OUTPUT ${effDataFormat.name}:")
+            println(formattedResult)
         } else {
             (outputFormat ?: TEXT).writeFile(File(output), result)
         }
+    }
+
+    fun println(s: String) {
+        terminal.writer().println(s)
     }
 
 
     fun readInput(input: String?, inputData: String?, inputFormat: DataFormat?): ByteArray {
         return when {
             (inputData != null && input != null) -> throw IllegalArgumentException("Specify --input-data or --input, not both")
-            inputData != null -> DataFormat.detectAndDecode(inputData)
+            inputData != null -> inputData(inputData, inputFormat)
             input != null -> inputFile(input, inputFormat)
             else -> throw IllegalArgumentException("Specify --input-data or --input, none was given")
+        }
+    }
+
+    private fun inputData(inputData: String, inputFormat: DataFormat?): ByteArray {
+        return when (inputFormat) {
+            null -> DataFormat.detectAndDecode(inputData)
+            else -> inputFormat.decode(inputData)
         }
     }
 
