@@ -34,18 +34,16 @@ See spring shell docs.
 - file i/o
 - console i/o
 - HEX, BASE64, TEXT (utf-8) data formats
+- completion of keys and algorithm names
 
 ## Todo
 
-- algorithm name completion
-- key label completion  
 - mac, sign, verify
 - csr generation, cert import
 - x509 extensions
 - kid strategies for JWE/JWS
 - x5c/x5t JWE/JWS support  
 - tests
-- help for individual parameters
 
 ## License 
 
