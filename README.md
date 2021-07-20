@@ -36,6 +36,32 @@ See spring shell docs.
 - HEX, BASE64, TEXT (utf-8) data formats
 - completion of keys and algorithm names
 
+## CLI Commands
+
+### Cipher operations
+
+- cipher: Cipher data
+- decipher: Decipher data
+
+## JWX Commands
+
+- jwe-decode: JWE Decode
+- jwe-encode: JWE Encode
+- jws-decode: JWS Decode
+- jws-encode: JWS Encode
+
+### Keystore operations
+
+- close-keystore: Close keystore
+- create-keystore: Create keystore
+- delete-key: Delete key
+- generate-key: Generate symmetric key
+- generate-key-pair: Generate asymmetric key pair
+- keystore-info: Keystore information
+- list-keys: List keys in keystore
+- load-keystore: Load keystore from file
+- store-keystore: Store keystore to file
+
 ## Todo
 
 - mac, sign, verify
