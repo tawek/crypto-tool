@@ -43,7 +43,7 @@ See spring shell docs.
 - cipher: Cipher data
 - decipher: Decipher data
 
-## JWX Commands
+### JWX Commands
 
 - jwe-decode: JWE Decode
 - jwe-encode: JWE Encode
