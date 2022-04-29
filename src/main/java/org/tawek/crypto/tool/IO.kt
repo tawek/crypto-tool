@@ -35,6 +35,11 @@ class IO {
     }
 
 
+    /**
+     * @param input - input file
+     * @param inputData - input data (autodetect or according to format)
+     * @param inputFormat - format for input data or input file
+     */
     fun readInput(input: String?, inputData: String?, inputFormat: DataFormat?): ByteArray {
         return when {
             (inputData != null && input != null) -> throw IllegalArgumentException("Specify --input-data or --input, not both")

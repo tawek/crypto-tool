@@ -29,6 +29,7 @@ import java.util.*
 import java.util.stream.Collectors.toList
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
+import javax.crypto.spec.SecretKeySpec
 
 @ShellComponent
 @ShellCommandGroup("Keystore operations")
@@ -36,6 +37,9 @@ class KeystoreManager {
 
     var keystore: KeyStore? = null
     var modified: Boolean = false
+
+    @Autowired
+    lateinit var io: IO
 
     @Autowired
     lateinit var terminal: Terminal
@@ -125,6 +129,25 @@ class KeystoreManager {
         ks.setKeyEntry(label, key, "".toCharArray(), arrayOf())
         modified = true
         terminal.writer().println("Key generated")
+        return describeKey(ks, label)
+    }
+
+    @ShellMethod("Import symmetric key")
+    fun importKey(
+        @ShellOption("-l", "--label", help = "Label of a new key") label: String,
+        @ShellOption("-t", "--type", help = "Type of key to import (AES/DESede)", defaultValue = "AES") type: String,
+        @ShellOption(
+        "-k", "--key",
+        help = "Actual key bytes. Prefix with 'HEX:', 'BASE64:', 'TEXT:'",
+        defaultValue = NULL
+        ) keyData: String?,
+    ):  String {
+        val ks = keystore()
+        checkNoKey(label)
+        val keyBytes = io.readInput(null, keyData, null)
+        val sks = SecretKeySpec(keyBytes, type)
+        ks.setKeyEntry(label, sks, charArrayOf(), arrayOf())
+        terminal.writer().println("Key '"+label+"' imported.")
         return describeKey(ks, label)
     }
 
