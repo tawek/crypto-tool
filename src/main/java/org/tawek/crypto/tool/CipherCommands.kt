@@ -22,6 +22,9 @@ class CipherCommands {
     private lateinit var keystoreManager: KeystoreManager
 
     @Autowired
+    private lateinit var providerSelection: ProviderSelection
+
+    @Autowired
     private lateinit var io :IO;
 
     @ShellMethod("Cipher data")
@@ -94,7 +97,11 @@ class CipherCommands {
     }
 
     private fun getCipher(algo: String): Cipher {
-        return Cipher.getInstance(algo)
+        return if (providerSelection.provider != null) {
+            Cipher.getInstance(algo, providerSelection.provider)
+        } else {
+            Cipher.getInstance(algo)
+        }
     }
 
 }
