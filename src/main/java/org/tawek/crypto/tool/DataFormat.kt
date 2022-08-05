@@ -5,13 +5,12 @@ import org.apache.commons.io.FileUtils
 import org.tawek.crypto.tool.Charsets.EXTENDED_ASCII
 import org.tawek.crypto.tool.Charsets.UTF8
 import java.io.File
-import java.nio.charset.Charset
-import java.util.*
+import java.util.Base64
 
 enum class DataFormat {
     BASE64 {
         override fun decode(value: String): ByteArray {
-            return Base64.getDecoder().decode(value);
+            return Base64.getDecoder().decode(removeAny(value, WHITESPACE));
         }
 
         override fun encode(value: ByteArray): String {
@@ -27,8 +26,9 @@ enum class DataFormat {
         }
     },
     HEX {
+
         override fun decode(value: String): ByteArray {
-            return Hex.decodeHex(value)
+            return Hex.decodeHex(removeAny(value, WHITESPACE_AND_COLON));
         }
 
         override fun encode(value: ByteArray): String {
@@ -70,6 +70,26 @@ enum class DataFormat {
     abstract fun writeFile(file: File, bytes: ByteArray)
 
     companion object {
+
+        val WHITESPACE_AND_COLON = charArrayOf(
+            '\r', // CR
+            '\n', // LF
+            '\t', // TAB
+            ' ', // SPACE
+            ':', // COLON
+        )
+
+        val WHITESPACE = charArrayOf(
+            '\r', // CR
+            '\n', // LF
+            '\t', // TAB
+            ' ', // SPACE
+        )
+
+
+        // check if value is prefixed with any of the data format names
+        // if so, remove it and decode the value using the corresponding data format
+        // otherwise, decode the value using HEX
         fun detectAndDecode(value: String): ByteArray {
             for (format in values()) {
                 val prefix = format.name + ":"
@@ -78,6 +98,17 @@ enum class DataFormat {
                 }
             }
             return HEX.decode(value)
+        }
+
+        // remove any characters of chars from input value
+        private fun removeAny(value: String, chars: CharArray): String {
+            val sb = StringBuilder()
+            for (c in value.toCharArray()) {
+                if (!chars.contains(c)) {
+                    sb.append(c)
+                }
+            }
+            return sb.toString()
         }
 
     }

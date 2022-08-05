@@ -1,7 +1,8 @@
 package org.tawek.crypto.tool
 
 import org.apache.commons.io.FileUtils
-import org.bouncycastle.asn1.x500.X500Name
+import org.bouncycastle.openssl.PEMKeyPair
+import org.bouncycastle.openssl.PEMParser
 import org.jline.terminal.Terminal
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.shell.standard.ShellCommandGroup
@@ -9,23 +10,24 @@ import org.springframework.shell.standard.ShellComponent
 import org.springframework.shell.standard.ShellMethod
 import org.springframework.shell.standard.ShellOption
 import org.springframework.shell.standard.ShellOption.NULL
-import org.tawek.crypto.tool.KeyOp.*
-
+import org.tawek.crypto.tool.KeyOp.CIPHER
+import org.tawek.crypto.tool.KeyOp.DECIPHER
+import org.tawek.crypto.tool.KeyOp.SIGN
+import org.tawek.crypto.tool.KeyOp.VERIFY
+import org.tawek.crypto.tool.KeyUtils.bitSize
+import org.tawek.crypto.tool.KeyUtils.makeX509SelfSignedCert
+import org.tawek.crypto.tool.KeyUtils.toPublicKey
 import java.io.ByteArrayOutputStream
 import java.io.File
-import java.lang.IllegalArgumentException
-import java.lang.IllegalStateException
-import java.math.BigInteger
-import java.security.*
-import java.security.cert.X509Certificate
-import java.security.interfaces.ECPrivateKey
-import java.security.interfaces.ECPublicKey
-import java.security.interfaces.RSAPrivateKey
-import java.security.interfaces.RSAPublicKey
+import java.io.StringReader
+import java.nio.charset.StandardCharsets
+import java.security.Key
+import java.security.KeyFactory
+import java.security.KeyPair
+import java.security.KeyPairGenerator
+import java.security.KeyStore
 import java.security.spec.ECGenParameterSpec
-import java.time.Instant
-import java.time.temporal.ChronoUnit
-import java.util.*
+import java.security.spec.PKCS8EncodedKeySpec
 import java.util.stream.Collectors.toList
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
@@ -84,7 +86,7 @@ class KeystoreManager {
     ): String {
         checkNoKeystore()
         keystore = KeyStore.getInstance(type)
-        keystore!!.load(null, "".toCharArray())
+        keystore!!.load(null, EMPTY_PASS)
         return keystoreInfo()
     }
 
@@ -126,7 +128,7 @@ class KeystoreManager {
         val keyGenerator = KeyGenerator.getInstance(type)
         keyGenerator.init(defaultBits(type, bits))
         val key = keyGenerator.generateKey()
-        ks.setKeyEntry(label, key, "".toCharArray(), arrayOf())
+        ks.setKeyEntry(label, key, EMPTY_PASS, arrayOf())
         modified = true
         terminal.writer().println("Key generated")
         return describeKey(ks, label)
@@ -137,17 +139,86 @@ class KeystoreManager {
         @ShellOption("-l", "--label", help = "Label of a new key") label: String,
         @ShellOption("-t", "--type", help = "Type of key to import (AES/DESede)", defaultValue = "AES") type: String,
         @ShellOption(
-        "-k", "--key",
-        help = "Actual key bytes. Prefix with 'HEX:', 'BASE64:', 'TEXT:'",
-        defaultValue = NULL
+            "-k", "--key",
+            help = "Actual key bytes. Prefix with 'HEX:', 'BASE64:', 'TEXT:'",
+            defaultValue = NULL
         ) keyData: String?,
-    ):  String {
+        @ShellOption(
+            "-f", "--key-file",
+            help = "Key file name",
+            defaultValue = NULL
+        ) keyFile: String?,
+    ): String {
         val ks = keystore()
         checkNoKey(label)
-        val keyBytes = io.readInput(null, keyData, null)
+        val keyBytes = io.readInput(keyFile, keyData, null)
         val sks = SecretKeySpec(keyBytes, type)
-        ks.setKeyEntry(label, sks, charArrayOf(), arrayOf())
-        terminal.writer().println("Key '"+label+"' imported.")
+        ks.setKeyEntry(label, sks, EMPTY_PASS, arrayOf())
+        terminal.writer().println("Key '" + label + "' imported.")
+        return describeKey(ks, label)
+    }
+
+    @ShellMethod("Import key pair (private part) using PKCS#8")
+    fun importPKCS8(
+        @ShellOption("-l", "--label", help = "Label of a new key") label: String,
+        @ShellOption("-t", "--type", help = "Type of key to import (RSA/EC)", defaultValue = "RSA") type: String,
+        @ShellOption(
+            "-k", "--key",
+            help = "Actual key bytes. Prefix with 'HEX:', 'BASE64:', 'TEXT:'",
+            defaultValue = NULL
+        ) keyData: String?,
+        @ShellOption(
+            "-f", "--key-file",
+            help = "Key file name",
+            defaultValue = NULL
+        ) keyFile: String?,
+    ): String {
+        val ks = keystore()
+        checkNoKey(label)
+        val keyBytes = io.readInput(keyFile, keyData, null)
+        return importPKCS8EncodedKey(type, keyBytes, ks, label)
+    }
+
+    @ShellMethod("Import key pair (private part) using PEM")
+    fun importPEM(
+        @ShellOption("-l", "--label", help = "Label of a new key") label: String,
+        @ShellOption("-t", "--type", help = "Type of key to import (RSA/EC)", defaultValue = "RSA") type: String,
+        @ShellOption(
+            "-k", "--key",
+            help = "Actual key bytes. Prefix with 'HEX:', 'BASE64:', 'TEXT:'",
+            defaultValue = NULL
+        ) keyData: String?,
+        @ShellOption(
+            "-f", "--key-file",
+            help = "Key file name",
+            defaultValue = NULL
+        ) keyFile: String?,
+    ): String {
+        val ks = keystore()
+        checkNoKey(label)
+        val keyBytes = io.readInput(keyFile, keyData, null)
+        val pem = PEMParser(StringReader(String(keyBytes, StandardCharsets.ISO_8859_1)))
+        val keyPair: PEMKeyPair = pem.readObject() as PEMKeyPair
+        val pkcs8 = keyPair.privateKeyInfo.encoded
+        return importPKCS8EncodedKey(type, pkcs8, ks, label)
+    }
+
+    private fun importPKCS8EncodedKey(
+        type: String,
+        encodedPrivateKey: ByteArray?,
+        ks: KeyStore,
+        label: String
+    ): String {
+        val keyFactory = KeyFactory.getInstance(type)
+        val sk = keyFactory.generatePrivate(PKCS8EncodedKeySpec(encodedPrivateKey))
+        val pk = toPublicKey(sk)
+
+        val kp = KeyPair(pk, sk)
+
+        val cert = makeX509SelfSignedCert(kp, "cn=" + label, 100)
+
+        ks.setKeyEntry(label, sk, EMPTY_PASS, arrayOf(cert))
+        terminal.writer().println("Key '" + label + "' imported.")
         return describeKey(ks, label)
     }
 
@@ -198,7 +269,7 @@ class KeystoreManager {
         val years = 100
         val dn = subjectDN ?: "cn=${label}"
         val cert = makeX509SelfSignedCert(keyPair, dn, years)
-        ks.setKeyEntry(label, keyPair.private, "".toCharArray(), arrayOf(cert))
+        ks.setKeyEntry(label, keyPair.private, EMPTY_PASS, arrayOf(cert))
         modified = true
         terminal.writer().println("Keypair generated")
         return describeKey(ks, label)
@@ -213,14 +284,14 @@ class KeystoreManager {
     fun getKey(keyLabel: String, keyOp: KeyOp): Key {
         val ks = keystore()
         if (ks.isKeyEntry(keyLabel)) {
-            val key = ks.getKey(keyLabel, "".toCharArray())
+            val key = ks.getKey(keyLabel, EMPTY_PASS)
             if (key is SecretKey) {
                 return key
             }
         }
         return when (keyOp) {
             CIPHER, VERIFY -> requireNotNull(ks.getCertificate(keyLabel).publicKey, { "No certificate ${keyLabel}" })
-            DECIPHER, SIGN -> requireNotNull(ks.getKey(keyLabel, "".toCharArray()), { "No private key ${keyLabel}" })
+            DECIPHER, SIGN -> requireNotNull(ks.getKey(keyLabel, EMPTY_PASS), { "No private key ${keyLabel}" })
         }
     }
 
@@ -244,11 +315,13 @@ class KeystoreManager {
         const val KEYSTORE_MODIFIED_MESSAGE = "Keystore is modified, save it first or close it with --force flag"
         const val NO_KEYSTORE_MESSAGE = "Keystore is not loaded, load it first"
 
+        val EMPTY_PASS = charArrayOf()
+
         fun describeKey(ks: KeyStore, alias: String): String {
             if (ks.isKeyEntry(alias)) {
-                val key = ks.getKey(alias, "".toCharArray())
+                val key = ks.getKey(alias, EMPTY_PASS)
                 val keyInfo = "[${alias}] : ${key.algorithm} / ${key.format}"
-                return keyInfo + bitSize(key)?.let { " / $it bits" }
+                return keyInfo + bitSize(key) ?.let { " / $it bits" }
             } else {
                 val certificate = ks.getCertificate(alias)
                 val publicKey = certificate.publicKey
@@ -258,23 +331,6 @@ class KeystoreManager {
         }
 
         private fun countKeys(ks: KeyStore) = ks.aliases().toList().size
-        private fun makeX509SelfSignedCert(
-            keyPair: KeyPair,
-            dn: String,
-            years: Int
-        ): X509Certificate {
-            val cert = CertBuilder(signedPublicKey = keyPair.public, signerPrivateKey = keyPair.private)
-                .build(
-                    CertSpec(
-                        issuerDn = X500Name(dn),
-                        subjectDn = X500Name(dn),
-                        notBefore = Instant.now(),
-                        notAfter = Instant.now().plus(365L * years, ChronoUnit.DAYS),
-                        serialNo = BigInteger.valueOf(Random().nextInt(100000000).toLong()),
-                    )
-                )
-            return cert
-        }
 
         private fun defaultBits(type: String, bits: Int?): Int {
             return bits
@@ -285,17 +341,6 @@ class KeystoreManager {
                     "DESede" -> 128
                     else -> throw IllegalArgumentException("Unknown key type ${type}")
                 }
-        }
-
-        private fun bitSize(key: Key): Int? {
-            return when (key) {
-                is RSAPrivateKey -> key.modulus.bitLength()
-                is ECPrivateKey -> key.params.curve.field.fieldSize
-                is RSAPublicKey -> key.modulus.bitLength()
-                is ECPublicKey -> key.params.curve.field.fieldSize
-                is SecretKey -> key.encoded.size * 8
-                else -> null
-            }
         }
 
     }

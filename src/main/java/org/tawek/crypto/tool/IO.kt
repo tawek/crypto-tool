@@ -4,7 +4,6 @@ import org.jline.terminal.Terminal
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Lazy
 import org.springframework.stereotype.Component
-import org.tawek.crypto.tool.DataFormat
 import org.tawek.crypto.tool.DataFormat.TEXT
 import java.io.File
 
@@ -36,15 +35,15 @@ class IO {
 
 
     /**
-     * @param input - input file
+     * @param inputFile - input file
      * @param inputData - input data (autodetect or according to format)
      * @param inputFormat - format for input data or input file
      */
-    fun readInput(input: String?, inputData: String?, inputFormat: DataFormat?): ByteArray {
+    fun readInput(inputFile: String?, inputData: String?, inputFormat: DataFormat?): ByteArray {
         return when {
-            (inputData != null && input != null) -> throw IllegalArgumentException("Specify --input-data or --input, not both")
+            (inputData != null && inputFile != null) -> throw IllegalArgumentException("Specify --input-data or --input, not both")
             inputData != null -> inputData(inputData, inputFormat)
-            input != null -> inputFile(input, inputFormat)
+            inputFile != null -> inputFile(inputFile, inputFormat)
             else -> throw IllegalArgumentException("Specify --input-data or --input, none was given")
         }
     }
